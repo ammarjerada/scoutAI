@@ -1,0 +1,10 @@
+# Backend Requirements for ScoutAI Enhanced
+Flask==3.0.3
+Flask-CORS==4.0.1
+mysql-connector-python==9.1.0
+bcrypt==4.2.1
+python-dotenv==1.0.1
+pandas==2.2.3
+numpy==1.26.4
+Pillow==10.4.0
+python-dateutil==2.9.0
