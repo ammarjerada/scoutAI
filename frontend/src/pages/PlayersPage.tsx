@@ -10,6 +10,12 @@ import { RegisterModal } from '../components/auth/RegisterModal';
 import { usePlayerSearch } from '../hooks/usePlayerSearch';
 import { useAuth } from '../contexts/AuthContext';
 import { Player, FilterParams } from '../types/Player';
+import { useNotifications } from '../hooks/useNotifications';
+import { NotificationSystem } from '../components/ui/NotificationSystem';
+import { AdvancedFilters } from '../components/ui/AdvancedFilters';
+import { PlayerRecommendations } from '../components/ui/PlayerRecommendations';
+import { QuickActions } from '../components/ui/QuickActions';
+import { ExportOptions } from '../components/ui/ExportOptions';
 import { Eye, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const PlayersPage: React.FC = () => {
@@ -28,7 +34,8 @@ export const PlayersPage: React.FC = () => {
     const [showFavorites, setShowFavorites] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
-    const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+    const [selectedPlayerForRecommendations, setSelectedPlayerForRecommendations] = useState<Player | null>(null);
+    const notifications = useNotifications();
 
     const {
         players,
@@ -55,11 +62,6 @@ export const PlayersPage: React.FC = () => {
         }
     }, [isAuthenticated, loadFavorites]);
 
-    const showNotification = (type: 'success' | 'error', message: string) => {
-        setNotification({ type, message });
-        setTimeout(() => setNotification(null), 3000);
-    };
-
     const handleFiltersChange = (newFilters: Partial<FilterParams>) => {
         setFilters(prev => ({ ...prev, ...newFilters }));
     };
@@ -79,8 +81,10 @@ export const PlayersPage: React.FC = () => {
 
         if (isSelected) {
             setSelectedPlayers(selectedPlayers.filter(p => p.player_id !== player.player_id));
+            setSelectedPlayerForRecommendations(null);
         } else if (selectedPlayers.length < 2) {
             setSelectedPlayers([...selectedPlayers, player]);
+            setSelectedPlayerForRecommendations(player);
         }
     };
 
@@ -91,14 +95,17 @@ export const PlayersPage: React.FC = () => {
     const handleFavoriteToggle = async (player: Player): Promise<boolean> => {
         try {
             const newState = await toggleFavorite(player);
-            showNotification('success', newState ? 'Joueur ajouté aux favoris' : 'Joueur retiré des favoris');
+            notifications.success(
+                'Favoris mis à jour',
+                newState ? 'Joueur ajouté aux favoris' : 'Joueur retiré des favoris'
+            );
             return newState;
         } catch (error: any) {
             console.error('Error toggling favorite:', error);
             if (error.message.includes('Connexion requise') || error.message.includes('Authentification requise')) {
                 handleLoginRequired();
             } else {
-                showNotification('error', error.message);
+                notifications.error('Erreur', error.message);
             }
             throw error;
         }
@@ -109,10 +116,10 @@ export const PlayersPage: React.FC = () => {
         if (favorite) {
             try {
                 await toggleFavorite(favorite.player);
-                showNotification('success', 'Joueur retiré des favoris');
+                notifications.success('Favoris', 'Joueur retiré des favoris');
             } catch (error) {
                 console.error('Error removing favorite:', error);
-                showNotification('error', 'Erreur lors de la suppression');
+                notifications.error('Erreur', 'Erreur lors de la suppression');
             }
         }
     };
@@ -122,10 +129,10 @@ export const PlayersPage: React.FC = () => {
         if (favorite) {
             try {
                 await updateFavoriteNotes(favorite.player.player_id, notes);
-                showNotification('success', 'Notes mises à jour');
+                notifications.success('Notes', 'Notes mises à jour');
             } catch (error) {
                 console.error('Error updating favorite notes:', error);
-                showNotification('error', 'Erreur lors de la mise à jour');
+                notifications.error('Erreur', 'Erreur lors de la mise à jour');
             }
         }
     };
@@ -135,7 +142,7 @@ export const PlayersPage: React.FC = () => {
         setShowRegister(false);
         await refreshAuth();
         await loadFavorites();
-        showNotification('success', 'Connexion réussie !');
+        notifications.success('Connexion', 'Connexion réussie !');
     };
 
     const handleRegisterSuccess = async () => {
@@ -143,26 +150,28 @@ export const PlayersPage: React.FC = () => {
         setShowRegister(false);
         await refreshAuth();
         await loadFavorites();
-        showNotification('success', 'Inscription réussie !');
+        notifications.success('Inscription', 'Inscription réussie !');
+    };
+
+    const handleResetFilters = () => {
+        setFilters({
+            style: "",
+            position: "",
+            budget: "",
+            minAge: "",
+            maxAge: "",
+            playerName: "",
+            sort_order: "desc",
+        });
+        notifications.info('Filtres', 'Filtres réinitialisés');
     };
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-            {/* Notification */}
-            {notification && (
-                <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-right ${
-                    notification.type === 'success' 
-                        ? 'bg-emerald-500 text-white' 
-                        : 'bg-red-500 text-white'
-                }`}>
-                    {notification.type === 'success' ? (
-                        <CheckCircle className="w-5 h-5" />
-                    ) : (
-                        <AlertCircle className="w-5 h-5" />
-                    )}
-                    <span className="font-medium">{notification.message}</span>
-                </div>
-            )}
+            <NotificationSystem 
+                notifications={notifications.notifications}
+                onDismiss={notifications.removeNotification}
+            />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Page Header */}
@@ -189,6 +198,16 @@ export const PlayersPage: React.FC = () => {
                         }
                     }}
                     favoritesCount={favorites.length}
+                />
+
+                {/* Quick Actions */}
+                <QuickActions onQuickFilter={handleFiltersChange} />
+
+                {/* Advanced Filters */}
+                <AdvancedFilters
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    onReset={handleResetFilters}
                 />
 
                 {loading && <LoadingSpinner progress={searchProgress} />}
@@ -222,21 +241,28 @@ export const PlayersPage: React.FC = () => {
                         <p className="text-slate-600 dark:text-slate-400">
                             {players.length} joueur{players.length > 1 ? 's' : ''} trouvé{players.length > 1 ? 's' : ''}
                         </p>
-                        {selectedPlayers.length === 2 && (
-                            <Link
-                                to="/comparison"
-                                state={{ players: selectedPlayers }}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors duration-200"
-                            >
-                                <Eye className="w-4 h-4" />
-                                Voir la comparaison
-                            </Link>
-                        )}
+                        <div className="flex items-center gap-3">
+                            <ExportOptions
+                                data={players}
+                                type="players"
+                                onExport={(format) => notifications.success('Export', `Export ${format.toUpperCase()} réussi`)}
+                            />
+                            {selectedPlayers.length === 2 && (
+                                <Link
+                                    to="/comparison"
+                                    state={{ players: selectedPlayers }}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors duration-200"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                    Voir la comparaison
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 )}
 
                 {/* Players Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="players-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {players.map((player, index) => (
                         <PlayerCard
                             key={`${player.player_id}-${index}`}
@@ -248,6 +274,19 @@ export const PlayersPage: React.FC = () => {
                         />
                     ))}
                 </div>
+
+                {/* Player Recommendations */}
+                {selectedPlayerForRecommendations && (
+                    <div className="mt-8">
+                        <PlayerRecommendations
+                            currentPlayer={selectedPlayerForRecommendations}
+                            allPlayers={allPlayers}
+                            onPlayerSelect={handlePlayerSelect}
+                            onFavoriteToggle={handleFavoriteToggle}
+                            onLoginRequired={handleLoginRequired}
+                        />
+                    </div>
+                )}
 
                 {!loading && players.length === 0 && !error && <EmptyState />}
 

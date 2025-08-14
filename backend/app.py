@@ -7,6 +7,8 @@ from mysql.connector import Error
 from datetime import datetime, timedelta
 import traceback
 import base64
+from routes.analytics import analytics_bp
+from services.cache_service import cache
 
 # Configuration de la base de données
 DB_CONFIG = {
@@ -16,7 +18,10 @@ DB_CONFIG = {
     'password': '',
     'port': 3307,
     'charset': 'utf8mb4',
-    'autocommit': True
+    'autocommit': True,
+    'pool_name': 'scoutai_pool',
+    'pool_size': 10,
+    'pool_reset_session': True
 }
 
 # Création de l'application Flask
@@ -35,6 +40,24 @@ app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
+# Enregistrer les blueprints
+app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+
+# Route pour vider le cache (admin seulement)
+@app.route("/api/cache/clear", methods=["POST"])
+def clear_cache():
+    """Vide le cache (admin seulement)"""
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+    
+    try:
+        cache.clear()
+        return jsonify({"message": "Cache vidé avec succès"}), 200
+    except Exception as e:
+        print(f"❌ Erreur clear_cache: {e}")
+        return jsonify({"error": "Erreur lors du vidage du cache"}), 500
 
 # Fonction de connexion à la base de données
 def get_db_connection():
@@ -513,6 +536,7 @@ def remove_player_from_team(team_id, player_id):
 # ===== ROUTES DES JOUEURS =====
 
 @app.route("/api/filter_players", methods=["POST"])
+@cache.cached(ttl=180)  # Cache pendant 3 minutes
 def filter_players():
     """Filtre les joueurs selon les critères"""
     try:
@@ -591,6 +615,40 @@ def filter_players():
                 params.append(budget)
             except ValueError:
                 pass
+        
+        # Filtres avancés
+        if data.get('league'):
+            query += " AND p.squad LIKE %s"
+            params.append(f"%{data['league']}%")
+        
+        if data.get('nationality'):
+            query += " AND p.nation LIKE %s"
+            params.append(f"%{data['nationality']}%")
+        
+        # Filtres de statistiques
+        stat_filters = [
+            ('goals_min', 'goals_max', 'p.goals'),
+            ('assists_min', 'assists_max', 'p.assists'),
+            ('xg_min', 'xg_max', 'p.xG'),
+            ('tackles_min', 'tackles_max', 'p.tackles')
+        ]
+        
+        for min_key, max_key, column in stat_filters:
+            if data.get(min_key):
+                try:
+                    min_val = float(data[min_key])
+                    query += f" AND {column} >= %s"
+                    params.append(min_val)
+                except ValueError:
+                    pass
+            
+            if data.get(max_key):
+                try:
+                    max_val = float(data[max_key])
+                    query += f" AND {column} <= %s"
+                    params.append(max_val)
+                except ValueError:
+                    pass
         
         # Tri et limite
         sort_direction = "DESC" if data.get('sort_order', 'desc').lower() == 'desc' else "ASC"

@@ -1,6 +1,6 @@
 # 🎯 ScoutAI - Application de Scouting Football
 
-Une application complète de scouting football avec intelligence artificielle pour analyser et comparer les joueurs.
+Une application complète de scouting football avec intelligence artificielle pour analyser et comparer les joueurs. Version Enhanced 2025 avec fonctionnalités avancées.
 
 ## 🚀 Installation et Lancement Rapide
 
@@ -59,6 +59,18 @@ DB_CONFIG = {
 ```
 
 ## 🎮 Fonctionnalités
+
+### 🆕 Nouvelles Fonctionnalités Enhanced
+- ✅ **Système de notifications** en temps réel
+- ✅ **Filtres avancés** avec statistiques détaillées
+- ✅ **Recommandations intelligentes** de joueurs similaires
+- ✅ **Métriques de performance** avancées
+- ✅ **Graphiques de progression** temporelle
+- ✅ **Actions rapides** pour filtrage instantané
+- ✅ **Export multi-format** (PDF, CSV, PNG, Email)
+- ✅ **Historique de recherche** intelligent
+- ✅ **Cache optimisé** pour de meilleures performances
+- ✅ **Documentation complète** du modèle IA
 
 ### 🔐 Authentification
 - ✅ Inscription/Connexion sécurisée

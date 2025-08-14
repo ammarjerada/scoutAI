@@ -25,6 +25,16 @@ export interface FilterParams {
   maxAge: string;
   playerName: string;
   sort_order: 'asc' | 'desc';
+  league?: string;
+  nationality?: string;
+  goals_min?: string;
+  goals_max?: string;
+  assists_min?: string;
+  assists_max?: string;
+  xg_min?: string;
+  xg_max?: string;
+  tackles_min?: string;
+  tackles_max?: string;
 }
 
 export interface RadarDataPoint {

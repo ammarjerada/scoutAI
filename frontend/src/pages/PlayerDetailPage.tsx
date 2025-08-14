@@ -18,6 +18,11 @@ import { FavoritesService } from '../services/favoritesService';
 import { PDFService } from '../services/pdfService';
 import { formatMarketValue, getDefaultPlayerImage, buildRadarData } from '../utils/playerUtils';
 import { STYLE_COLORS, STYLE_ICONS } from '../constants/gameStyles';
+import { PerformanceChart } from '../components/ui/PerformanceChart';
+import { PlayerRecommendations } from '../components/ui/PlayerRecommendations';
+import { PerformanceMetrics } from '../components/ui/PerformanceMetrics';
+import { useNotifications } from '../hooks/useNotifications';
+import { NotificationSystem } from '../components/ui/NotificationSystem';
 import {
     RadarChart,
     Radar,
@@ -38,6 +43,8 @@ export const PlayerDetailPage: React.FC = () => {
     const [player, setPlayer] = useState<Player | null>(null);
     const [loading, setLoading] = useState(true);
     const [isFavorite, setIsFavorite] = useState(false);
+    const [activeChart, setActiveChart] = useState<string>('goals');
+    const notifications = useNotifications();
 
     const { allPlayers, loadAllPlayers, error } = usePlayerSearch();
 
@@ -69,8 +76,10 @@ export const PlayerDetailPage: React.FC = () => {
 
         if (isFavorite) {
             FavoritesService.removeFromFavorites(player.Player);
+            notifications.success('Favoris', 'Joueur retiré des favoris');
         } else {
             FavoritesService.addToFavorites(player);
+            notifications.success('Favoris', 'Joueur ajouté aux favoris');
         }
         setIsFavorite(!isFavorite);
     };
@@ -79,8 +88,10 @@ export const PlayerDetailPage: React.FC = () => {
         if (!player) return;
         try {
             await PDFService.exportPlayerReport(player);
+            notifications.success('Export', 'Rapport PDF généré avec succès');
         } catch (error) {
             console.error('Error exporting PDF:', error);
+            notifications.error('Export', 'Erreur lors de la génération du PDF');
         }
     };
 
@@ -96,11 +107,12 @@ export const PlayerDetailPage: React.FC = () => {
                 });
             } catch (error) {
                 console.log('Error sharing:', error);
+                notifications.error('Partage', 'Erreur lors du partage');
             }
         } else {
             // Fallback: copy to clipboard
             navigator.clipboard.writeText(window.location.href);
-            alert('Lien copié dans le presse-papiers !');
+            notifications.success('Partage', 'Lien copié dans le presse-papiers !');
         }
     };
 
@@ -174,6 +186,11 @@ export const PlayerDetailPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+            <NotificationSystem 
+                notifications={notifications.notifications}
+                onDismiss={notifications.removeNotification}
+            />
+            
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
@@ -304,8 +321,45 @@ export const PlayerDetailPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Performance Metrics */}
+                <div className="mb-8">
+                    <PerformanceMetrics player={player} />
+                </div>
+
+                {/* Performance Charts */}
+                <div className="mb-8">
+                    <div className="flex items-center gap-4 mb-6">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                            Analyse de Performance
+                        </h2>
+                        <div className="flex gap-2">
+                            {[
+                                { key: 'goals', label: 'Buts' },
+                                { key: 'assists', label: 'Assists' },
+                                { key: 'xg', label: 'xG' },
+                                { key: 'tackles', label: 'Tacles' }
+                            ].map(({ key, label }) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setActiveChart(key)}
+                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                        activeChart === key
+                                            ? 'bg-emerald-500 text-white'
+                                            : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <PerformanceChart
+                        players={player ? [player] : []}
+                        metric={activeChart === 'goals' ? 'Gls' : activeChart === 'assists' ? 'Ast' : activeChart === 'xg' ? 'xG' : 'Tkl'}
+                        title={activeChart === 'goals' ? 'Buts' : activeChart === 'assists' ? 'Assists' : activeChart === 'xg' ? 'Expected Goals' : 'Tacles'}
+                    />
+                </div>
                     {/* Radar Chart */}
                     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -346,6 +400,8 @@ export const PlayerDetailPage: React.FC = () => {
                         </div>
                     </div>
 
+                {/* Charts Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     {/* Bar Chart */}
                     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -378,6 +434,30 @@ export const PlayerDetailPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Player Recommendations */}
+                {player && (
+                    <PlayerRecommendations
+                        currentPlayer={player}
+                        allPlayers={allPlayers}
+                        onPlayerSelect={(selectedPlayer) => {
+                            const slug = selectedPlayer.Player.toLowerCase().replace(/\s+/g, '-');
+                            window.location.href = `/player/${slug}`;
+                        }}
+                        onFavoriteToggle={async (p) => {
+                            const isFav = FavoritesService.isFavorite(p.Player);
+                            if (isFav) {
+                                FavoritesService.removeFromFavorites(p.Player);
+                                notifications.success('Favoris', 'Joueur retiré des favoris');
+                            } else {
+                                FavoritesService.addToFavorites(p);
+                                notifications.success('Favoris', 'Joueur ajouté aux favoris');
+                            }
+                            return !isFav;
+                        }}
+                        onLoginRequired={() => notifications.warning('Connexion', 'Connexion requise pour cette action')}
+                    />
+                )}
             </div>
         </div>
     );

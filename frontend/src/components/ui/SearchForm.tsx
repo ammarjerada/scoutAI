@@ -3,6 +3,8 @@ import { Filter, Search, ChevronDown, Heart } from 'lucide-react';
 import { FilterParams } from '../../types/Player';
 import { GAME_STYLES, POSITIONS } from '../../constants/gameStyles';
 import { PlayerNameSearch } from './PlayerNameSearch';
+import { SearchSuggestions } from './SearchSuggestions';
+import { SearchHistoryService } from '../../utils/searchHistory';
 
 interface SearchFormProps {
   filters: FilterParams;
@@ -23,23 +25,54 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   onShowFavorites,
   favoritesCount
 }) => {
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  useEffect(() => {
+    setRecentSearches(SearchHistoryService.getSearchHistory());
+  }, []);
+
+  const handleSuggestionClick = (suggestion: string) => {
+    onFiltersChange({ playerName: suggestion });
+    SearchHistoryService.addToSearchHistory(suggestion);
+    setRecentSearches(SearchHistoryService.getSearchHistory());
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Save search to history
+    if (filters.playerName) {
+      SearchHistoryService.addToSearchHistory(filters.playerName);
+      setRecentSearches(SearchHistoryService.getSearchHistory());
+    }
+    
+    onSubmit(e);
+  };
+
   return (
     <div className="mb-12 lg:mb-16">
-      <form onSubmit={onSubmit} className="relative">
+      <form onSubmit={handleSubmit} className="relative">
         <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-8 shadow-2xl">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Filter className="w-6 h-6 text-emerald-400" />
               <h2 className="text-2xl font-bold text-white">Filtres de recherche</h2>
             </div>
-            <button
-              type="button"
-              onClick={onShowFavorites}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl text-white font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-200"
-            >
-              <Heart className="w-4 h-4" />
-              <span>Favoris ({favoritesCount})</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <SearchSuggestions
+                onSuggestionClick={handleSuggestionClick}
+                recentSearches={recentSearches}
+                popularPlayers={allPlayers.slice(0, 10)}
+              />
+              <button
+                type="button"
+                onClick={onShowFavorites}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl text-white font-semibold hover:from-pink-600 hover:to-rose-600 transition-all duration-200"
+              >
+                <Heart className="w-4 h-4" />
+                <span>Favoris ({favoritesCount})</span>
+              </button>
+            </div>
           </div>
 
           {/* Player Name Search */}
