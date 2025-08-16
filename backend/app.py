@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import traceback
 import base64
 from routes.analytics import analytics_bp
+from routes.chatbot import chatbot_bp
 from services.cache_service import cache
 
 # Configuration de la base de données
@@ -43,6 +44,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 # Enregistrer les blueprints
 app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
 
 # Route pour vider le cache (admin seulement)
 @app.route("/api/cache/clear", methods=["POST"])

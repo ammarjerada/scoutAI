@@ -13,7 +13,8 @@ import {
   LogIn,
   UserPlus,
   User,
-  Layers
+  Layers,
+  MessageCircle
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,6 +36,7 @@ export const Navigation: React.FC = () => {
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard', public: false },
     { path: '/comparison', icon: GitCompare, label: 'Comparaison', public: false },
     { path: '/draft', icon: Layers, label: 'Draft', public: false, permission: 'canCreateTeams' },
+    { path: '/chat', icon: MessageCircle, label: 'Assistant IA', public: true },
   ];
 
   const isActive = (path: string) => {

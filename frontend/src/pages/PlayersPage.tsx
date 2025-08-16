@@ -16,6 +16,7 @@ import { AdvancedFilters } from '../components/ui/AdvancedFilters';
 import { PlayerRecommendations } from '../components/ui/PlayerRecommendations';
 import { QuickActions } from '../components/ui/QuickActions';
 import { ExportOptions } from '../components/ui/ExportOptions';
+import { ChatbotWidget } from '../components/chatbot/ChatbotWidget';
 import { Eye, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const PlayersPage: React.FC = () => {
@@ -36,6 +37,29 @@ export const PlayersPage: React.FC = () => {
     const [showRegister, setShowRegister] = useState(false);
     const [selectedPlayerForRecommendations, setSelectedPlayerForRecommendations] = useState<Player | null>(null);
     const notifications = useNotifications();
+    
+    // Gestion des paramètres du chatbot dans l'URL
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const chatbotCriteria = urlParams.get('chatbot_criteria');
+        
+        if (chatbotCriteria) {
+            try {
+                const criteria = JSON.parse(decodeURIComponent(chatbotCriteria));
+                setFilters(prev => ({ ...prev, ...criteria }));
+                
+                // Lancer automatiquement la recherche
+                setTimeout(() => {
+                    searchPlayers({ ...filters, ...criteria });
+                }, 500);
+                
+                // Nettoyer l'URL
+                window.history.replaceState({}, '', window.location.pathname);
+            } catch (error) {
+                console.error('Error parsing chatbot criteria:', error);
+            }
+        }
+    }, []);
 
     const {
         players,
@@ -321,5 +345,12 @@ export const PlayersPage: React.FC = () => {
                 />
             </div>
         </div>
+        
+        {/* Chatbot Widget */}
+        <ChatbotWidget
+            onPlayerSelect={handlePlayerSelect}
+            onFavoriteToggle={handleFavoriteToggle}
+            onLoginRequired={handleLoginRequired}
+        />
     );
 };

@@ -5,6 +5,7 @@ import { GAME_STYLES, POSITIONS } from '../../constants/gameStyles';
 import { PlayerNameSearch } from './PlayerNameSearch';
 import { SearchSuggestions } from './SearchSuggestions';
 import { SearchHistoryService } from '../../utils/searchHistory';
+import { useState, useEffect } from 'react';
 
 interface SearchFormProps {
   filters: FilterParams;

@@ -130,4 +130,36 @@ class AuthService:
             print(f"Erreur dans get_user_by_id: {e}")
             return None
 
+    def update_user_profile(self, user_id: int, data: Dict) -> Optional[Dict]:
+        """Met à jour le profil d'un utilisateur"""
+        try:
+            # Construire la requête de mise à jour dynamiquement
+            update_fields = []
+            params = []
+            
+            if 'firstName' in data:
+                update_fields.append("first_name = %s")
+                params.append(data['firstName'])
+            
+            if 'lastName' in data:
+                update_fields.append("last_name = %s")
+                params.append(data['lastName'])
+            
+            if 'avatar' in data:
+                update_fields.append("avatar_url = %s")
+                params.append(data['avatar'])
+            
+            if update_fields:
+                params.append(user_id)
+                query = f"UPDATE users SET {', '.join(update_fields)} WHERE user_id = %s"
+                success = db.execute_query(query, tuple(params), fetch=False)
+                
+                if success:
+                    return self.get_user_by_id(user_id)
+            
+            return self.get_user_by_id(user_id)
+            
+        except Exception as e:
+            print(f"Erreur dans update_user_profile: {e}")
+            return None
 
