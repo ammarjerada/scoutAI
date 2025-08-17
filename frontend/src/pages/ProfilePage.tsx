@@ -8,7 +8,6 @@ import {
   Shield,
   Target,
   TrendingUp,
-  Crown,
   Upload,
   X,
   Check,
@@ -50,9 +49,9 @@ export const ProfilePage: React.FC = () => {
       case 'admin':
         return {
           color: 'from-red-500 to-pink-500',
-          icon: Crown,
+          icon: Shield,
           label: 'Administrateur',
-          description: 'Accès complet au système, gestion des utilisateurs et de la base de données'
+          description: 'Accès complet au système et gestion des utilisateurs'
         };
       case 'analyst':
         return {
@@ -351,19 +350,6 @@ export const ProfilePage: React.FC = () => {
                     </span>
                   </div>
                   
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                    <span className="text-sm text-slate-600 dark:text-slate-400">Équipes maximum</span>
-                    <span className="text-sm font-semibold text-blue-500">
-                      {user.permissions.maxTeams}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                    <span className="text-sm text-slate-600 dark:text-slate-400">Création d'équipes</span>
-                    <span className={`text-sm font-semibold ${user.permissions.canCreateTeams ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {user.permissions.canCreateTeams ? 'Autorisé' : 'Non autorisé'}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -387,7 +373,7 @@ export const ProfilePage: React.FC = () => {
               {user.role === 'admin' && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Crown className="w-4 h-4 text-red-500" />
+                    <Shield className="w-4 h-4 text-red-500" />
                     <span className="font-semibold text-red-700 dark:text-red-300">Privilèges Administrateur</span>
                   </div>
                   <p className="text-sm text-red-600 dark:text-red-400">

@@ -12,9 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Player, FilterParams } from '../types/Player';
 import { useNotifications } from '../hooks/useNotifications';
 import { NotificationSystem } from '../components/ui/NotificationSystem';
-import { AdvancedFilters } from '../components/ui/AdvancedFilters';
 import { PlayerRecommendations } from '../components/ui/PlayerRecommendations';
-import { QuickActions } from '../components/ui/QuickActions';
 import { ExportOptions } from '../components/ui/ExportOptions';
 import { ChatbotWidget } from '../components/chatbot/ChatbotWidget';
 import { Eye, AlertCircle, CheckCircle } from 'lucide-react';
@@ -26,8 +24,6 @@ export const PlayersPage: React.FC = () => {
         position: "",
         budget: "",
         minAge: "",
-        maxAge: "",
-        playerName: "",
         sort_order: "desc",
     });
 
@@ -49,9 +45,11 @@ export const PlayersPage: React.FC = () => {
                 setFilters(prev => ({ ...prev, ...criteria }));
                 
                 // Lancer automatiquement la recherche
-                setTimeout(() => {
+                if (criteria.style) {
+                    setTimeout(() => {
                     searchPlayers({ ...filters, ...criteria });
-                }, 500);
+                    }, 500);
+                }
                 
                 // Nettoyer l'URL
                 window.history.replaceState({}, '', window.location.pathname);
@@ -184,14 +182,13 @@ export const PlayersPage: React.FC = () => {
             budget: "",
             minAge: "",
             maxAge: "",
-            playerName: "",
             sort_order: "desc",
         });
         notifications.info('Filtres', 'Filtres réinitialisés');
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
             <NotificationSystem 
                 notifications={notifications.notifications}
                 onDismiss={notifications.removeNotification}
@@ -213,7 +210,6 @@ export const PlayersPage: React.FC = () => {
                     onFiltersChange={handleFiltersChange}
                     onSubmit={handleSubmit}
                     loading={loading}
-                    allPlayers={allPlayers}
                     onShowFavorites={() => {
                         if (isAuthenticated) {
                             setShowFavorites(true);
@@ -222,16 +218,6 @@ export const PlayersPage: React.FC = () => {
                         }
                     }}
                     favoritesCount={favorites.length}
-                />
-
-                {/* Quick Actions */}
-                <QuickActions onQuickFilter={handleFiltersChange} />
-
-                {/* Advanced Filters */}
-                <AdvancedFilters
-                    filters={filters}
-                    onFiltersChange={handleFiltersChange}
-                    onReset={handleResetFilters}
                 />
 
                 {loading && <LoadingSpinner progress={searchProgress} />}

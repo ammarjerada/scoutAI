@@ -5,13 +5,12 @@ import {
     Award,
     Target,
     BarChart3,
-    PieChart,
     Activity,
     Star,
-    AlertCircle
+    AlertCircle,
+    Loader2
 } from 'lucide-react';
-import { usePlayerSearch } from '../hooks/usePlayerSearch';
-import { FavoritesService } from '../services/favoritesService';
+import { ApiService } from '../services/api';
 import {
     BarChart,
     Bar,
@@ -22,31 +21,158 @@ import {
     ResponsiveContainer,
     PieChart as RechartsPieChart,
     Cell,
-    LineChart,
-    Line,
     Area,
     AreaChart,
     Pie
 } from 'recharts';
 
+interface DashboardStats {
+    totalPlayers: number;
+    avgAge: number;
+    avgMarketValue: number;
+    topScorer: {
+        name: string;
+        goals: number;
+        squad: string;
+    };
+    positionDistribution: Array<{ position: string; count: number }>;
+    styleDistribution: Array<{ style: string; count: number }>;
+    ageDistribution: Array<{ range: string; count: number }>;
+    valueDistribution: Array<{ range: string; count: number }>;
+}
+
 export const DashboardPage: React.FC = () => {
-    const { allPlayers, loadAllPlayers, error } = usePlayerSearch();
-    const [favorites] = useState(() => FavoritesService.getFavorites());
+    const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const loadData = async () => {
-            await loadAllPlayers();
+        loadDashboardData();
+    }, []);
+
+    const loadDashboardData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // Charger tous les joueurs pour calculer les statistiques
+            const allPlayers = await ApiService.filterPlayers({
+                style: "",
+                position: "",
+                budget: "",
+                minAge: "",
+                maxAge: "",
+                sort_order: "desc"
+            });
+
+            if (allPlayers.length === 0) {
+                throw new Error('Aucune donnée disponible');
+            }
+
+            // Calculer les statistiques
+            const totalPlayers = allPlayers.length;
+            const avgAge = allPlayers.reduce((sum, p) => sum + (p.Age || 0), 0) / totalPlayers;
+            const avgMarketValue = allPlayers.reduce((sum, p) => sum + (p.MarketValue || 0), 0) / totalPlayers;
+            const topScorer = allPlayers.reduce((max, p) => (p.Gls || 0) > (max.Gls || 0) ? p : max, allPlayers[0]);
+
+            // Distribution par position
+            const positionCounts = allPlayers.reduce((acc, player) => {
+                const pos = player.Pos || 'Unknown';
+                acc[pos] = (acc[pos] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const positionDistribution = Object.entries(positionCounts).map(([position, count]) => ({
+                position,
+                count
+            }));
+
+            // Distribution par style
+            const styleCounts = allPlayers.reduce((acc, player) => {
+                const style = player.style || 'Non défini';
+                acc[style] = (acc[style] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const styleDistribution = Object.entries(styleCounts).map(([style, count]) => ({
+                style,
+                count
+            }));
+
+            // Distribution par âge
+            const ageRanges = {
+                '16-20': 0,
+                '21-25': 0,
+                '26-30': 0,
+                '31-35': 0,
+                '36+': 0
+            };
+
+            allPlayers.forEach(player => {
+                const age = player.Age || 0;
+                if (age <= 20) ageRanges['16-20']++;
+                else if (age <= 25) ageRanges['21-25']++;
+                else if (age <= 30) ageRanges['26-30']++;
+                else if (age <= 35) ageRanges['31-35']++;
+                else ageRanges['36+']++;
+            });
+
+            const ageDistribution = Object.entries(ageRanges).map(([range, count]) => ({
+                range,
+                count
+            }));
+
+            // Distribution par valeur marchande
+            const valueRanges = {
+                '0-10M€': 0,
+                '10-25M€': 0,
+                '25-50M€': 0,
+                '50-100M€': 0,
+                '100M€+': 0
+            };
+
+            allPlayers.forEach(player => {
+                const value = (player.MarketValue || 0) / 1000000;
+                if (value < 10) valueRanges['0-10M€']++;
+                else if (value < 25) valueRanges['10-25M€']++;
+                else if (value < 50) valueRanges['25-50M€']++;
+                else if (value < 100) valueRanges['50-100M€']++;
+                else valueRanges['100M€+']++;
+            });
+
+            const valueDistribution = Object.entries(valueRanges).map(([range, count]) => ({
+                range,
+                count
+            }));
+
+            setStats({
+                totalPlayers,
+                avgAge,
+                avgMarketValue,
+                topScorer: {
+                    name: topScorer.Player,
+                    goals: topScorer.Gls || 0,
+                    squad: topScorer.Squad
+                },
+                positionDistribution,
+                styleDistribution,
+                ageDistribution,
+                valueDistribution
+            });
+
+        } catch (error: any) {
+            console.error('Error loading dashboard data:', error);
+            setError(error.message || 'Erreur lors du chargement des données');
+        } finally {
             setLoading(false);
-        };
-        loadData();
-    }, [loadAllPlayers]);
+        }
+    };
 
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <Loader2 className="w-16 h-16 text-blue-600 dark:text-emerald-500 animate-spin mx-auto mb-4" />
                     <p className="text-slate-600 dark:text-slate-400">Chargement du dashboard...</p>
                 </div>
             </div>
@@ -67,8 +193,8 @@ export const DashboardPage: React.FC = () => {
                         {error}
                     </p>
                     <button
-                        onClick={() => window.location.reload()}
-                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors"
+                        onClick={loadDashboardData}
+                        className="px-4 py-2 bg-blue-600 dark:bg-emerald-500 hover:bg-blue-700 dark:hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors"
                     >
                         Réessayer
                     </button>
@@ -77,114 +203,38 @@ export const DashboardPage: React.FC = () => {
         );
     }
 
-    // Analytics calculations
-    const totalPlayers = allPlayers.length;
-    const avgAge = allPlayers.reduce((sum, p) => sum + (p.Age || 0), 0) / totalPlayers;
-    const avgMarketValue = allPlayers.reduce((sum, p) => sum + (p.MarketValue || 0), 0) / totalPlayers;
-    const topScorer = allPlayers.reduce((max, p) => (p.Gls || 0) > (max.Gls || 0) ? p : max, allPlayers[0]);
+    if (!stats) return null;
 
-    // Position distribution
-    const positionData = allPlayers.reduce((acc, player) => {
-        const pos = player.Pos || 'Unknown';
-        acc[pos] = (acc[pos] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
+    const COLORS = ['#2563eb', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444'];
 
-    const positionChartData = Object.entries(positionData).map(([position, count]) => ({
-        position,
-        count,
-        percentage: ((count / totalPlayers) * 100).toFixed(1)
-    }));
-
-    // Style distribution
-    const styleData = allPlayers.reduce((acc, player) => {
-        const style = player.style || 'Unknown';
-        acc[style] = (acc[style] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
-
-    const styleChartData = Object.entries(styleData).map(([style, count]) => ({
-        style: style.length > 15 ? style.substring(0, 15) + '...' : style,
-        count,
-        fullStyle: style
-    }));
-
-    // Age distribution
-    const ageRanges = {
-        '16-20': 0,
-        '21-25': 0,
-        '26-30': 0,
-        '31-35': 0,
-        '36+': 0
-    };
-
-    allPlayers.forEach(player => {
-        const age = player.Age || 0;
-        if (age <= 20) ageRanges['16-20']++;
-        else if (age <= 25) ageRanges['21-25']++;
-        else if (age <= 30) ageRanges['26-30']++;
-        else if (age <= 35) ageRanges['31-35']++;
-        else ageRanges['36+']++;
-    });
-
-    const ageChartData = Object.entries(ageRanges).map(([range, count]) => ({
-        range,
-        count
-    }));
-
-    // Market value ranges
-    const valueRanges = {
-        '0-10M': 0,
-        '10-25M': 0,
-        '25-50M': 0,
-        '50-100M': 0,
-        '100M+': 0
-    };
-
-    allPlayers.forEach(player => {
-        const value = (player.MarketValue || 0) / 1000000;
-        if (value < 10) valueRanges['0-10M']++;
-        else if (value < 25) valueRanges['10-25M']++;
-        else if (value < 50) valueRanges['25-50M']++;
-        else if (value < 100) valueRanges['50-100M']++;
-        else valueRanges['100M+']++;
-    });
-
-    const valueChartData = Object.entries(valueRanges).map(([range, count]) => ({
-        range,
-        count
-    }));
-
-    const COLORS = ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444'];
-
-    const stats = [
+    const dashboardCards = [
         {
             title: 'Total Joueurs',
-            value: totalPlayers.toLocaleString(),
+            value: stats.totalPlayers.toLocaleString(),
             icon: Users,
-            color: 'from-blue-500 to-cyan-500',
+            color: 'from-blue-500 to-blue-600',
             change: '+12%'
         },
         {
             title: 'Âge Moyen',
-            value: `${avgAge.toFixed(1)} ans`,
+            value: `${stats.avgAge.toFixed(1)} ans`,
             icon: Activity,
-            color: 'from-emerald-500 to-teal-500',
+            color: 'from-emerald-500 to-emerald-600',
             change: '-0.5%'
         },
         {
             title: 'Valeur Moyenne',
-            value: `${(avgMarketValue / 1000000).toFixed(1)}M€`,
+            value: `${(stats.avgMarketValue / 1000000).toFixed(1)}M€`,
             icon: TrendingUp,
-            color: 'from-violet-500 to-purple-500',
+            color: 'from-violet-500 to-violet-600',
             change: '+8%'
         },
         {
-            title: 'Mes Favoris',
-            value: favorites.length.toString(),
-            icon: Star,
-            color: 'from-pink-500 to-rose-500',
-            change: `+${favorites.length}`
+            title: 'Meilleur Buteur',
+            value: `${stats.topScorer.goals} buts`,
+            icon: Award,
+            color: 'from-orange-500 to-orange-600',
+            change: stats.topScorer.name
         }
     ];
 
@@ -197,30 +247,30 @@ export const DashboardPage: React.FC = () => {
                         Dashboard Analytics
                     </h1>
                     <p className="text-slate-600 dark:text-slate-400">
-                        Vue d'ensemble des données et statistiques de la base de joueurs
+                        Vue d'ensemble des données et statistiques en temps réel
                     </p>
                 </div>
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.map((stat, index) => (
+                    {dashboardCards.map((card, index) => (
                         <div
                             key={index}
-                            className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700"
+                            className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow"
                         >
                             <div className="flex items-center justify-between mb-4">
-                                <div className={`p-3 rounded-xl bg-gradient-to-r ${stat.color}`}>
-                                    <stat.icon className="w-6 h-6 text-white" />
+                                <div className={`p-3 rounded-xl bg-gradient-to-r ${card.color}`}>
+                                    <card.icon className="w-6 h-6 text-white" />
                                 </div>
                                 <span className="text-sm font-semibold text-emerald-500">
-                                    {stat.change}
+                                    {card.change}
                                 </span>
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-                                {stat.value}
+                                {card.value}
                             </h3>
                             <p className="text-slate-600 dark:text-slate-400 text-sm">
-                                {stat.title}
+                                {card.title}
                             </p>
                         </div>
                     ))}
@@ -229,7 +279,7 @@ export const DashboardPage: React.FC = () => {
                 {/* Charts Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     {/* Position Distribution */}
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                             Distribution par Position
                         </h3>
@@ -237,15 +287,15 @@ export const DashboardPage: React.FC = () => {
                             <ResponsiveContainer width="100%" height="100%">
                                 <RechartsPieChart>
                                     <Pie
-                                        data={positionChartData}
+                                        data={stats.positionDistribution}
                                         cx="50%"
                                         cy="50%"
                                         outerRadius={100}
                                         fill="#8884d8"
                                         dataKey="count"
-                                        label={({ position, percentage }) => `${position} (${percentage}%)`}
+                                        label={({ position, count }) => `${position} (${count})`}
                                     >
-                                        {positionChartData.map((entry, index) => (
+                                        {stats.positionDistribution.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
@@ -256,14 +306,14 @@ export const DashboardPage: React.FC = () => {
                     </div>
 
                     {/* Age Distribution */}
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                             Distribution par Âge
                         </h3>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={ageChartData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <BarChart data={stats.ageDistribution}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                     <XAxis
                                         dataKey="range"
                                         stroke="#64748b"
@@ -275,13 +325,13 @@ export const DashboardPage: React.FC = () => {
                                     />
                                     <Tooltip
                                         contentStyle={{
-                                            backgroundColor: "rgba(15, 23, 42, 0.9)",
-                                            border: "1px solid rgba(148, 163, 184, 0.3)",
+                                            backgroundColor: "white",
+                                            border: "1px solid #e2e8f0",
                                             borderRadius: "12px",
-                                            color: "#e2e8f0",
+                                            color: "#1e293b",
                                         }}
                                     />
-                                    <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -290,14 +340,14 @@ export const DashboardPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Style Distribution */}
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                             Styles de Jeu
                         </h3>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={styleChartData} layout="horizontal">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <BarChart data={stats.styleDistribution} layout="horizontal">
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                     <XAxis
                                         type="number"
                                         stroke="#64748b"
@@ -312,28 +362,27 @@ export const DashboardPage: React.FC = () => {
                                     />
                                     <Tooltip
                                         contentStyle={{
-                                            backgroundColor: "rgba(15, 23, 42, 0.9)",
-                                            border: "1px solid rgba(148, 163, 184, 0.3)",
+                                            backgroundColor: "white",
+                                            border: "1px solid #e2e8f0",
                                             borderRadius: "12px",
-                                            color: "#e2e8f0",
+                                            color: "#1e293b",
                                         }}
-                                        formatter={(value, name, props) => [value, props.payload.fullStyle]}
                                     />
-                                    <Bar dataKey="count" fill="#06b6d4" radius={[0, 4, 4, 0]} />
+                                    <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
                     {/* Market Value Distribution */}
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                             Valeurs Marchandes
                         </h3>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={valueChartData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <AreaChart data={stats.valueDistribution}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                     <XAxis
                                         dataKey="range"
                                         stroke="#64748b"
@@ -345,10 +394,10 @@ export const DashboardPage: React.FC = () => {
                                     />
                                     <Tooltip
                                         contentStyle={{
-                                            backgroundColor: "rgba(15, 23, 42, 0.9)",
-                                            border: "1px solid rgba(148, 163, 184, 0.3)",
+                                            backgroundColor: "white",
+                                            border: "1px solid #e2e8f0",
                                             borderRadius: "12px",
-                                            color: "#e2e8f0",
+                                            color: "#1e293b",
                                         }}
                                     />
                                     <Area
@@ -365,50 +414,50 @@ export const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Top Performers */}
-                <div className="mt-8 bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
+                <div className="mt-8 bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">
-                        Top Performers
+                        Performances Exceptionnelles
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Top Scorer */}
-                        <div className="text-center p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                            <Award className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                            <h4 className="font-semibold text-slate-900 dark:text-white mb-1">
+                        <div className="text-center p-6 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
+                            <Award className="w-12 h-12 text-orange-500 mx-auto mb-3" />
+                            <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
                                 Meilleur Buteur
                             </h4>
-                            <p className="text-lg font-bold text-emerald-500">
-                                {topScorer?.Player}
+                            <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                                {stats.topScorer.name}
                             </p>
                             <p className="text-sm text-slate-600 dark:text-slate-400">
-                                {topScorer?.Gls} buts
+                                {stats.topScorer.goals} buts • {stats.topScorer.squad}
                             </p>
                         </div>
 
                         {/* Most Valuable */}
-                        <div className="text-center p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                            <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                            <h4 className="font-semibold text-slate-900 dark:text-white mb-1">
-                                Plus Cher
+                        <div className="text-center p-6 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                            <TrendingUp className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                            <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
+                                Valeur Moyenne
                             </h4>
-                            <p className="text-lg font-bold text-emerald-500">
-                                {allPlayers.reduce((max, p) => (p.MarketValue || 0) > (max.MarketValue || 0) ? p : max, allPlayers[0])?.Player}
+                            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                                {(stats.avgMarketValue / 1000000).toFixed(1)}M€
                             </p>
                             <p className="text-sm text-slate-600 dark:text-slate-400">
-                                {((allPlayers.reduce((max, p) => (p.MarketValue || 0) > (max.MarketValue || 0) ? p : max, allPlayers[0])?.MarketValue || 0) / 1000000).toFixed(1)}M€
+                                Sur {stats.totalPlayers.toLocaleString()} joueurs
                             </p>
                         </div>
 
-                        {/* Youngest */}
-                        <div className="text-center p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                            <Target className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                            <h4 className="font-semibold text-slate-900 dark:text-white mb-1">
-                                Plus Jeune
+                        {/* Age Average */}
+                        <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                            <Target className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+                            <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
+                                Âge Moyen
                             </h4>
-                            <p className="text-lg font-bold text-emerald-500">
-                                {allPlayers.reduce((min, p) => (p.Age || 100) < (min.Age || 100) ? p : min, allPlayers[0])?.Player}
+                            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                {stats.avgAge.toFixed(1)} ans
                             </p>
                             <p className="text-sm text-slate-600 dark:text-slate-400">
-                                {allPlayers.reduce((min, p) => (p.Age || 100) < (min.Age || 100) ? p : min, allPlayers[0])?.Age} ans
+                                Profil expérimenté
                             </p>
                         </div>
                     </div>

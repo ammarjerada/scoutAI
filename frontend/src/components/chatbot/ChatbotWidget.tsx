@@ -48,7 +48,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
       const welcomeMessage: ChatMessage = {
         id: 'welcome',
         type: 'bot',
-        content: "👋 Salut ! Je suis votre assistant ScoutAI.\n\nJe peux vous aider à trouver des joueurs en analysant vos demandes en langage naturel.\n\n💡 **Essayez par exemple :**\n• \"Je cherche un attaquant rapide de moins de 25 ans\"\n• \"Trouve-moi un milieu créatif avec de bonnes passes\"\n• \"Quel défenseur pour moins de 20M€ ?\"",
+        content: "👋 Bonjour ! Je suis votre assistant ScoutAI.\n\nJe peux vous aider à trouver des joueurs en analysant vos demandes en langage naturel.\n\n💡 **Essayez par exemple :**\n• \"Je cherche un attaquant rapide de moins de 25 ans\"\n• \"Trouvez-moi un milieu créatif avec de bonnes passes\"\n• \"Quel défenseur pour moins de 20 millions d'euros ?\"",
         timestamp: new Date()
       };
       setMessages([welcomeMessage]);

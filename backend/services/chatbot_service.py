@@ -320,11 +320,11 @@ class ChatbotService:
         """Retourne des exemples de questions pour guider l'utilisateur"""
         return [
             "Je cherche un attaquant rapide de moins de 25 ans",
-            "Trouve-moi un milieu créatif avec de bonnes passes",
-            "Quel défenseur solide pour moins de 20M€ ?",
-            "Montre-moi les meilleurs jeunes talents",
+            "Trouvez-moi un milieu créatif avec de bonnes passes",
+            "Quel défenseur solide pour moins de 20 millions d'euros ?",
+            "Montrez-moi les meilleurs jeunes talents",
             "Je veux un joueur comme Mbappé",
-            "Cherche un gardien expérimenté"
+            "Cherchez un gardien expérimenté"
         ]
 
     def analyze_intent(self, message: str) -> str:

@@ -50,7 +50,7 @@ export const HomePage: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
             {/* Hero Section */}
-            <section className="relative overflow-hidden py-20 lg:py-32">
+            <section className="relative overflow-hidden py-20 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
                 {/* Background Effects */}
                 <div className="absolute inset-0">
                     <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse"></div>

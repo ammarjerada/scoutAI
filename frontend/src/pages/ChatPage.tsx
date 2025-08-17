@@ -51,7 +51,7 @@ export const ChatPage: React.FC = () => {
     const welcomeMessage: ChatMessage = {
       id: 'welcome',
       type: 'bot',
-      content: "👋 **Bienvenue dans l'Assistant ScoutAI !**\n\nJe suis votre expert en scouting personnel. Décrivez-moi le type de joueur que vous recherchez en langage naturel, et je vous proposerai les meilleurs profils de notre base de données.\n\n🎯 **Je peux analyser :**\n• Position et rôle\n• Âge et expérience\n• Style de jeu\n• Budget et valeur marchande\n• Statistiques spécifiques\n\n💡 **Commencez par une question !**",
+      content: "👋 **Bienvenue dans l'Assistant ScoutAI !**\n\nJe suis votre expert en scouting personnel. Décrivez-moi le type de joueur que vous recherchez en langage naturel, et je vous proposerai les meilleurs profils de notre base de données.\n\n🎯 **Je peux analyser :**\n• Position et rôle\n• Âge et expérience\n• Style de jeu\n• Budget et valeur marchande\n• Statistiques spécifiques\n\n💡 **Posez-moi une question pour commencer !**",
       timestamp: new Date()
     };
     setMessages([welcomeMessage]);

@@ -8,7 +8,6 @@ import {
   Shield, 
   Target,
   Users,
-  Crown,
   TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -41,7 +40,7 @@ export const UserMenu: React.FC = () => {
       case 'admin':
         return {
           color: 'from-red-500 to-pink-500',
-          icon: Crown,
+          icon: Shield,
           label: 'Administrateur',
           description: 'Accès complet au système'
         };
@@ -137,9 +136,6 @@ export const UserMenu: React.FC = () => {
               <div className="text-slate-600 dark:text-slate-400">
                 Favoris max: <span className="font-semibold text-emerald-500">{user.permissions.maxFavorites}</span>
               </div>
-              <div className="text-slate-600 dark:text-slate-400">
-                Équipes max: <span className="font-semibold text-blue-500">{user.permissions.maxTeams}</span>
-              </div>
             </div>
           </div>
 
@@ -163,15 +159,6 @@ export const UserMenu: React.FC = () => {
               <span>Dashboard</span>
             </Link>
             
-            <Link
-              to="/draft"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-            >
-              <Users className="w-4 h-4" />
-              <span>Mode Draft</span>
-            </Link>
-
             {user.permissions.canManageUsers && (
               <Link
                 to="/admin"

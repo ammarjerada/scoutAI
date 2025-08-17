@@ -139,8 +139,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     <div
       onClick={handleCompareClick}
       className={`group relative backdrop-blur-xl border rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:scale-105 transform ${isSelected
-        ? "bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border-emerald-400/50 shadow-2xl shadow-emerald-500/20"
-        : "bg-white/80 dark:bg-slate-800/80 border-slate-200/50 dark:border-slate-700/50 hover:bg-white/90 dark:hover:bg-slate-800/90 hover:border-emerald-400/30 hover:shadow-xl"
+        ? "bg-gradient-to-br from-blue-500/20 to-indigo-500/20 dark:from-emerald-500/20 dark:to-cyan-500/20 border-blue-400/50 dark:border-emerald-400/50 shadow-2xl shadow-blue-500/20 dark:shadow-emerald-500/20"
+        : "bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/90 hover:border-blue-400/30 dark:hover:border-emerald-400/30 hover:shadow-xl"
         }`}
     >
       {/* Messages de feedback */}

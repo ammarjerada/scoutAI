@@ -391,150 +391,6 @@ def upload_avatar():
 
 # ===== GESTION DES ÉQUIPES (DRAFT MODE) =====
 
-@app.route("/api/teams", methods=["GET"])
-def get_user_teams():
-    """Récupère les équipes de l'utilisateur"""
-    auth_error = require_auth()
-    if auth_error:
-        return auth_error
-    
-    try:
-        user_id = session['user_id']
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-        
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT t.*, 
-                   (SELECT COUNT(*) FROM team_players tp WHERE tp.team_id = t.team_id) as player_count
-            FROM teams t 
-            WHERE t.user_id = %s 
-            ORDER BY t.created_at DESC
-        """, (user_id,))
-        
-        teams = cursor.fetchall()
-        cursor.close()
-        connection.close()
-        
-        return jsonify(teams), 200
-        
-    except Exception as e:
-        print(f"❌ Erreur get_user_teams: {e}")
-        return jsonify({"error": "Erreur lors de la récupération des équipes"}), 500
-
-@app.route("/api/teams", methods=["POST"])
-def create_team():
-    """Crée une nouvelle équipe"""
-    auth_error = require_auth()
-    if auth_error:
-        return auth_error
-    
-    try:
-        user_id = session['user_id']
-        data = request.json
-        
-        team_name = data.get('name', 'Mon Équipe')
-        formation = data.get('formation', '4-3-3')
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-        
-        cursor = connection.cursor()
-        cursor.execute("""
-            INSERT INTO teams (user_id, name, formation)
-            VALUES (%s, %s, %s)
-        """, (user_id, team_name, formation))
-        
-        team_id = cursor.lastrowid
-        cursor.close()
-        connection.close()
-        
-        return jsonify({"team_id": team_id, "message": "Équipe créée"}), 201
-        
-    except Exception as e:
-        print(f"❌ Erreur create_team: {e}")
-        return jsonify({"error": "Erreur lors de la création de l'équipe"}), 500
-
-@app.route("/api/teams/<int:team_id>/players", methods=["POST"])
-def add_player_to_team():
-    """Ajoute un joueur à une équipe"""
-    auth_error = require_auth()
-    if auth_error:
-        return auth_error
-    
-    try:
-        user_id = session['user_id']
-        data = request.json
-        player_id = data.get('player_id')
-        position = data.get('position', 'SUB')
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-        
-        cursor = connection.cursor()
-        
-        # Vérifier que l'équipe appartient à l'utilisateur
-        cursor.execute("SELECT team_id FROM teams WHERE team_id = %s AND user_id = %s", (team_id, user_id))
-        if not cursor.fetchone():
-            cursor.close()
-            connection.close()
-            return jsonify({"error": "Équipe non trouvée"}), 404
-        
-        # Ajouter le joueur
-        cursor.execute("""
-            INSERT INTO team_players (team_id, player_id, position)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE position = VALUES(position)
-        """, (team_id, player_id, position))
-        
-        cursor.close()
-        connection.close()
-        
-        return jsonify({"message": "Joueur ajouté à l'équipe"}), 201
-        
-    except Exception as e:
-        print(f"❌ Erreur add_player_to_team: {e}")
-        return jsonify({"error": "Erreur lors de l'ajout du joueur"}), 500
-
-@app.route("/api/teams/<int:team_id>/players/<int:player_id>", methods=["DELETE"])
-def remove_player_from_team(team_id, player_id):
-    """Supprime un joueur d'une équipe"""
-    auth_error = require_auth()
-    if auth_error:
-        return auth_error
-    
-    try:
-        user_id = session['user_id']
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({"error": "Erreur de connexion à la base de données"}), 500
-        
-        cursor = connection.cursor()
-        
-        # Vérifier que l'équipe appartient à l'utilisateur
-        cursor.execute("SELECT team_id FROM teams WHERE team_id = %s AND user_id = %s", (team_id, user_id))
-        if not cursor.fetchone():
-            cursor.close()
-            connection.close()
-            return jsonify({"error": "Équipe non trouvée"}), 404
-        
-        # Supprimer le joueur
-        cursor.execute("DELETE FROM team_players WHERE team_id = %s AND player_id = %s", (team_id, player_id))
-        
-        cursor.close()
-        connection.close()
-        
-        return jsonify({"message": "Joueur retiré de l'équipe"}), 200
-        
-    except Exception as e:
-        print(f"❌ Erreur remove_player_from_team: {e}")
-        return jsonify({"error": "Erreur lors de la suppression"}), 500
-
 # ===== ROUTES DES JOUEURS =====
 
 @app.route("/api/filter_players", methods=["POST"])
@@ -578,9 +434,12 @@ def filter_players():
         params = []
         
         # Application des filtres
-        if data.get('style') and data['style'] != "":
+        if data.get('style') and data['style'] != "" and data['style'] != "Choisir un style":
             query += " AND s.name = %s"
             params.append(data['style'].lower())
+        elif not data.get('style') or data['style'] == "" or data['style'] == "Choisir un style":
+            # Style obligatoire - retourner une erreur si pas de style
+            return jsonify({"error": "Le style de jeu est obligatoire pour la recherche"}), 400
         
         if data.get('position') and data['position'] != "":
             query += " AND p.position LIKE %s"
@@ -617,40 +476,6 @@ def filter_players():
                 params.append(budget)
             except ValueError:
                 pass
-        
-        # Filtres avancés
-        if data.get('league'):
-            query += " AND p.squad LIKE %s"
-            params.append(f"%{data['league']}%")
-        
-        if data.get('nationality'):
-            query += " AND p.nation LIKE %s"
-            params.append(f"%{data['nationality']}%")
-        
-        # Filtres de statistiques
-        stat_filters = [
-            ('goals_min', 'goals_max', 'p.goals'),
-            ('assists_min', 'assists_max', 'p.assists'),
-            ('xg_min', 'xg_max', 'p.xG'),
-            ('tackles_min', 'tackles_max', 'p.tackles')
-        ]
-        
-        for min_key, max_key, column in stat_filters:
-            if data.get(min_key):
-                try:
-                    min_val = float(data[min_key])
-                    query += f" AND {column} >= %s"
-                    params.append(min_val)
-                except ValueError:
-                    pass
-            
-            if data.get(max_key):
-                try:
-                    max_val = float(data[max_key])
-                    query += f" AND {column} <= %s"
-                    params.append(max_val)
-                except ValueError:
-                    pass
         
         # Tri et limite
         sort_direction = "DESC" if data.get('sort_order', 'desc').lower() == 'desc' else "ASC"
@@ -993,28 +818,22 @@ def get_role_permissions(role):
             'canManageUsers': True,
             'canViewAllData': True,
             'canExportData': True,
-            'canCreateTeams': True,
             'canManageDatabase': True,
             'maxFavorites': 1000,
-            'maxTeams': 50
         },
         'analyst': {
             'canManageUsers': False,
             'canViewAllData': True,
             'canExportData': True,
-            'canCreateTeams': True,
             'canManageDatabase': False,
             'maxFavorites': 500,
-            'maxTeams': 20
         },
         'scout': {
             'canManageUsers': False,
             'canViewAllData': False,
             'canExportData': True,
-            'canCreateTeams': True,
             'canManageDatabase': False,
             'maxFavorites': 100,
-            'maxTeams': 10
         }
     }
     return permissions.get(role, permissions['scout'])

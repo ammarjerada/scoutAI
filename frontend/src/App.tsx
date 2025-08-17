@@ -9,7 +9,6 @@ import { PlayerDetailPage } from './pages/PlayerDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ComparisonPage } from './pages/ComparisonPage';
 import { ProfilePage } from './pages/ProfilePage';
-import { DraftPage } from './pages/DraftPage';
 import { ChatPage } from './pages/ChatPage';
 
 export default function App() {
@@ -27,7 +26,6 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/comparison" element={<ComparisonPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/draft" element={<DraftPage />} />
                 <Route path="/chat" element={<ChatPage />} />
               </Routes>
             </main>
