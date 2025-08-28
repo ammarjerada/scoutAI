@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import { Player } from '../types/Player';
@@ -18,7 +18,8 @@ export const ComparisonPage: React.FC = () => {
     const { isAuthenticated } = useAuth();
     const { allPlayers, loadAllPlayers } = usePlayerSearch();
     const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
-    const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+
     const [showLogin, setShowLogin] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
 
@@ -27,15 +28,23 @@ export const ComparisonPage: React.FC = () => {
         const playersFromState = location.state?.players || [];
         setSelectedPlayers(playersFromState);
 
-        const loadData = async () => {
-            if (allPlayers.length === 0) {
-                await loadAllPlayers();
-            }
-            setAvailablePlayers(allPlayers.slice(0, 20)); // Show first 20 for selection
-        };
+        if (allPlayers.length === 0) {
+            loadAllPlayers();
+        }
+    }, [location.state, loadAllPlayers, allPlayers.length]); // Dépendre de la longueur pour éviter les re-renders infinis
 
-        loadData();
-    }, [location.state, allPlayers, loadAllPlayers]);
+    const availablePlayers = useMemo(() => {
+        let filtered = allPlayers;
+        if (searchTerm.trim() !== '') {
+            filtered = allPlayers.filter(player =>
+                player.Player.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+        // Trier par valeur marchande décroissante
+        filtered = filtered.sort((a, b) => b.MarketValue - a.MarketValue);
+        // Afficher les 50 premiers par défaut (ou tous si recherche)
+        return searchTerm.trim() === '' ? filtered.slice(0, 50) : filtered;
+    }, [allPlayers, searchTerm]);
 
     const handlePlayerSelect = (player: Player) => {
         const isSelected = selectedPlayers.some(p => p.Player === player.Player);
@@ -206,6 +215,13 @@ export const ComparisonPage: React.FC = () => {
                         <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-6">
                             Choisir {selectedPlayers.length === 0 ? 'les joueurs' : 'le second joueur'}
                         </h2>
+                        <input
+                            type="text"
+                            placeholder="Rechercher un joueur par nom..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="mb-6 w-full max-w-md px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        />
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {availablePlayers.map((player, index) => (
                                 <PlayerCard

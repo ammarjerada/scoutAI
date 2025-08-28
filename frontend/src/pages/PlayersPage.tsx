@@ -24,6 +24,8 @@ export const PlayersPage: React.FC = () => {
         position: "",
         budget: "",
         minAge: "",
+        maxAge: "",
+        playerName: "",
         sort_order: "desc",
     });
 
@@ -32,25 +34,26 @@ export const PlayersPage: React.FC = () => {
     const [showLogin, setShowLogin] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
     const [selectedPlayerForRecommendations, setSelectedPlayerForRecommendations] = useState<Player | null>(null);
+    const [searchPerformed, setSearchPerformed] = useState(false);
     const notifications = useNotifications();
-    
+
     // Gestion des paramètres du chatbot dans l'URL
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const chatbotCriteria = urlParams.get('chatbot_criteria');
-        
+
         if (chatbotCriteria) {
             try {
                 const criteria = JSON.parse(decodeURIComponent(chatbotCriteria));
                 setFilters(prev => ({ ...prev, ...criteria }));
-                
+
                 // Lancer automatiquement la recherche
                 if (criteria.style) {
                     setTimeout(() => {
-                    searchPlayers({ ...filters, ...criteria });
+                        searchPlayers({ ...filters, ...criteria });
                     }, 500);
                 }
-                
+
                 // Nettoyer l'URL
                 window.history.replaceState({}, '', window.location.pathname);
             } catch (error) {
@@ -71,7 +74,8 @@ export const PlayersPage: React.FC = () => {
         loadFavorites,
         toggleFavorite,
         updateFavoriteNotes,
-        clearError
+        clearError,
+        clearPlayers
     } = usePlayerSearch();
 
     useEffect(() => {
@@ -90,12 +94,28 @@ export const PlayersPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSearchPerformed(true);
         try {
             console.log('Submitting filters:', filters);
             await searchPlayers(filters);
         } catch (error) {
             console.error('Error in handleSubmit:', error);
         }
+    };
+
+    const handleReset = () => {
+        const initialFilters: FilterParams = {
+            style: '',
+            position: '',
+            minAge: '',
+            maxAge: '',
+            budget: '',
+            sort_order: 'desc' as 'asc' | 'desc',
+            playerName: ''
+        };
+        setFilters(initialFilters);
+        setSearchPerformed(false);
+        clearPlayers();
     };
 
     const handlePlayerSelect = (player: Player) => {
@@ -175,21 +195,9 @@ export const PlayersPage: React.FC = () => {
         notifications.success('Inscription', 'Inscription réussie !');
     };
 
-    const handleResetFilters = () => {
-        setFilters({
-            style: "",
-            position: "",
-            budget: "",
-            minAge: "",
-            maxAge: "",
-            sort_order: "desc",
-        });
-        notifications.info('Filtres', 'Filtres réinitialisés');
-    };
-
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
-            <NotificationSystem 
+            <NotificationSystem
                 notifications={notifications.notifications}
                 onDismiss={notifications.removeNotification}
             />
@@ -209,6 +217,7 @@ export const PlayersPage: React.FC = () => {
                     filters={filters}
                     onFiltersChange={handleFiltersChange}
                     onSubmit={handleSubmit}
+                    onReset={handleReset}
                     loading={loading}
                     onShowFavorites={() => {
                         if (isAuthenticated) {
@@ -298,7 +307,17 @@ export const PlayersPage: React.FC = () => {
                     </div>
                 )}
 
-                {!loading && players.length === 0 && !error && <EmptyState />}
+                {!loading && players.length === 0 && !error && (
+                    searchPerformed ? (
+                        <div className="text-center py-16 col-span-full">
+                            <AlertCircle className="mx-auto h-12 w-12 text-slate-400" />
+                            <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">Aucun résultat</h3>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Aucun joueur ne correspond à vos critères de recherche. Essayez d'élargir vos filtres.</p>
+                        </div>
+                    ) : (
+                        <EmptyState />
+                    )
+                )}
 
                 {/* Modals */}
                 {showFavorites && (
@@ -330,13 +349,13 @@ export const PlayersPage: React.FC = () => {
                     onSuccess={handleRegisterSuccess}
                 />
             </div>
+
+            {/* Chatbot Widget */}
+            <ChatbotWidget
+                onPlayerSelect={handlePlayerSelect}
+                onFavoriteToggle={handleFavoriteToggle}
+                onLoginRequired={handleLoginRequired}
+            />
         </div>
-        
-        {/* Chatbot Widget */}
-        <ChatbotWidget
-            onPlayerSelect={handlePlayerSelect}
-            onFavoriteToggle={handleFavoriteToggle}
-            onLoginRequired={handleLoginRequired}
-        />
     );
 };

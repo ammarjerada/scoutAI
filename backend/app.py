@@ -393,8 +393,114 @@ def upload_avatar():
 
 # ===== ROUTES DES JOUEURS =====
 
+@app.route("/api/test_db", methods=["GET"])
+def test_database():
+    """Route de test pour vérifier la base de données"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+        
+        cursor = connection.cursor(dictionary=True)
+        
+        # Vérifier le nombre total de joueurs
+        cursor.execute("SELECT COUNT(*) as total FROM players")
+        total_players = cursor.fetchone()['total']
+        
+        # Vérifier les styles disponibles
+        cursor.execute("SELECT id_style, name FROM styles")
+        styles = cursor.fetchall()
+        
+        # Vérifier quelques joueurs
+        cursor.execute("SELECT player_id, name, position, squad, id_style FROM players LIMIT 5")
+        sample_players = cursor.fetchall()
+        
+        # Vérifier la jointure styles-joueurs
+        cursor.execute("""
+            SELECT p.player_id, p.name, s.name as style_name 
+            FROM players p 
+            LEFT JOIN styles s ON p.id_style = s.id_style 
+            LIMIT 5
+        """)
+        joined_data = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
+        return jsonify({
+            "total_players": total_players,
+            "available_styles": styles,
+            "sample_players": sample_players,
+            "joined_data": joined_data
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Erreur test DB: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/players/all", methods=["GET"])
+def get_all_players():
+    """Récupère tous les joueurs (pour dashboard)"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Erreur de connexion à la base de données"}), 500
+        cursor = connection.cursor(dictionary=True)
+        query = """
+            SELECT 
+                p.player_id,
+                p.name as Player,
+                p.age as Age,
+                p.position as Pos,
+                p.squad as Squad,
+                COALESCE(s.name, '') as style,
+                p.market_value as MarketValue,
+                p.goals as Gls,
+                p.assists as Ast,
+                p.xG,
+                p.xAG,
+                p.tackles as Tkl,
+                p.progressive_passes as PrgP,
+                p.carries as Carries,
+                p.key_passes as KP,
+                COALESCE(p.image_url, '') as image_url
+            FROM players p
+            LEFT JOIN styles s ON p.id_style = s.id_style
+        """
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        connection.close()
+        formatted_results = []
+        for player in results:
+            formatted_player = {
+                'player_id': int(player['player_id']),
+                'Player': player['Player'],
+                'Age': int(player['Age']) if player['Age'] else 0,
+                'Pos': player['Pos'] or '',
+                'Squad': player['Squad'] or '',
+                'style': player['style'] or '',
+                'MarketValue': float(player['MarketValue']) if player['MarketValue'] else 0,
+                'Gls': int(player['Gls']) if player['Gls'] else 0,
+                'Ast': int(player['Ast']) if player['Ast'] else 0,
+                'xG': float(player['xG']) if player['xG'] else 0,
+                'xAG': float(player['xAG']) if player['xAG'] else 0,
+                'Tkl': int(player['Tkl']) if player['Tkl'] else 0,
+                'PrgP': int(player['PrgP']) if player['PrgP'] else 0,
+                'Carries': int(player['Carries']) if player['Carries'] else 0,
+                'KP': int(player['KP']) if player['KP'] else 0,
+                'image_url': player['image_url'] or "https://images.pexels.com/photos/114296/pexels-photo-114296.jpeg?auto=compress&cs=tinysrgb&w=400"
+            }
+            formatted_results.append(formatted_player)
+        return jsonify(formatted_results), 200
+    except Exception as e:
+        print(f"❌ Erreur lors de la récupération de tous les joueurs: {e}")
+        traceback.print_exc()
+        return jsonify({"error": "Erreur lors de la récupération des joueurs"}), 500
+
 @app.route("/api/filter_players", methods=["POST"])
-@cache.cached(ttl=180)  # Cache pendant 3 minutes
+# @cache.cached(ttl=180)  # Cache désactivé pour éviter le bug de résultats obsolètes
 def filter_players():
     """Filtre les joueurs selon les critères"""
     try:
@@ -406,6 +512,16 @@ def filter_players():
             return jsonify({"error": "Erreur de connexion à la base de données"}), 500
         
         cursor = connection.cursor(dictionary=True)
+        
+        # Vérifier d'abord s'il y a des données dans la base
+        cursor.execute("SELECT COUNT(*) as total FROM players")
+        total_players = cursor.fetchone()['total']
+        print(f"🔍 Total des joueurs dans la base: {total_players}")
+        
+        # Vérifier les styles disponibles
+        cursor.execute("SELECT id_style, name FROM styles")
+        available_styles = cursor.fetchall()
+        print(f"🎯 Styles disponibles: {available_styles}")
         
         # Construction de la requête
         query = """
@@ -433,47 +549,61 @@ def filter_players():
         
         params = []
         
-        # Application des filtres
-        if data.get('style') and data['style'] != "" and data['style'] != "Choisir un style":
-            query += " AND s.name = %s"
-            params.append(data['style'].lower())
-        elif not data.get('style') or data['style'] == "" or data['style'] == "Choisir un style":
-            # Style obligatoire - retourner une erreur si pas de style
+        # Nettoyage des filtres reçus
+        style = str(data.get('style', '')).strip().lower()
+        position = str(data.get('position', '')).strip().upper()
+        squad = str(data.get('Squad', '')).strip()
+        player_name = str(data.get('playerName', '')).strip()
+        # Compatibilité : accepter minAge/maxAge/budget OU age_min/age_max/budget_max
+        min_age = data.get('minAge') or data.get('age_min')
+        max_age = data.get('maxAge') or data.get('age_max')
+        budget = data.get('budget') or data.get('budget_max')
+
+        print(f"[DEBUG] Filtres utilisés: style={style}, position={position}, squad={squad}, player_name={player_name}, min_age={min_age}, max_age={max_age}, budget={budget}")
+
+        # Application des filtres robustes
+        if style and style != "choisir un style":
+            # Recherche plus flexible pour le style
+            query += " AND (LOWER(TRIM(s.name)) LIKE %s OR LOWER(TRIM(s.name)) LIKE %s OR LOWER(TRIM(s.name)) LIKE %s)"
+            params.extend([f"%{style}%", f"%{style.replace(' ', '%')}%", f"%{style.replace(' ', '')}%"])
+            print(f"🔍 Style recherché: '{style}' avec requête: {query}")
+        else:
             return jsonify({"error": "Le style de jeu est obligatoire pour la recherche"}), 400
-        
-        if data.get('position') and data['position'] != "":
-            query += " AND p.position LIKE %s"
-            params.append(f"%{data['position']}%")
-        
-        if data.get('Squad') and data['Squad'] != "":
+
+        if position:
+            # On matche toutes les variantes contenant la chaîne (MF matche CMF, DMF, etc.)
+            query += " AND UPPER(TRIM(p.position)) LIKE %s"
+            params.append(f"%{position}%")
+
+        if squad:
             query += " AND p.squad LIKE %s"
-            params.append(f"%{data['Squad']}%")
-        
-        if data.get('playerName') and data['playerName'] != "":
+            params.append(f"%{squad}%")
+
+        if player_name:
             query += " AND p.name LIKE %s"
-            params.append(f"%{data['playerName']}%")
-        
-        if data.get('minAge'):
+            params.append(f"%{player_name}%")
+
+        if min_age:
             try:
-                age_min = int(data['minAge'])
+                age_min = int(min_age)
                 query += " AND p.age >= %s"
                 params.append(age_min)
             except ValueError:
                 pass
-        
-        if data.get('maxAge'):
+
+        if max_age:
             try:
-                age_max = int(data['maxAge'])
+                age_max = int(max_age)
                 query += " AND p.age <= %s"
                 params.append(age_max)
             except ValueError:
                 pass
-        
-        if data.get('budget'):
+
+        if budget:
             try:
-                budget = float(data['budget'])
+                budget_val = float(budget)
                 query += " AND p.market_value <= %s"
-                params.append(budget)
+                params.append(budget_val)
             except ValueError:
                 pass
         
@@ -481,10 +611,17 @@ def filter_players():
         sort_direction = "DESC" if data.get('sort_order', 'desc').lower() == 'desc' else "ASC"
         query += f" ORDER BY p.market_value {sort_direction} LIMIT 100"
         
+        print(f"🔍 Requête SQL finale: {query}")
+        print(f"🔍 Paramètres: {params}")
+        
         cursor.execute(query, params)
         results = cursor.fetchall()
         cursor.close()
         connection.close()
+        
+        print(f"🔍 Résultats bruts de la base: {len(results)}")
+        if results:
+            print(f"🔍 Premier résultat: {results[0]}")
         
         # Formatage des résultats
         formatted_results = []

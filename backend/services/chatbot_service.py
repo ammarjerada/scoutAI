@@ -8,12 +8,13 @@ class ChatbotService:
     
     def __init__(self):
         self.position_keywords = {
-            'attaquant': ['FW', 'ST', 'CF'],
-            'avant': ['FW', 'ST', 'CF'],
-            'buteur': ['FW', 'ST', 'CF'],
-            'ailier': ['FW', 'LW', 'RW'],
-            'milieu': ['MF', 'CM', 'CDM', 'CAM'],
-            'defenseur': ['DF', 'CB', 'LB', 'RB'],
+            'attaquant': ['FW'],
+            'avant': ['FW'],
+            'buteur': ['FW'],
+            'ailier': ['FW'],
+            'milieu': ['MF'],
+            'defenseur': ['DF'],
+            'défenseur': ['DF'],
             'gardien': ['GK'],
             'goal': ['GK']
         }
@@ -226,12 +227,55 @@ class ChatbotService:
             print(f"❌ Erreur dans search_players: {e}")
             return []
 
-    def generate_response(self, message: str, players: List[Dict], criteria: Dict) -> str:
+    def search_players_flexible(self, criteria: Dict) -> Tuple[List[Dict], str]:
+        """Recherche souple : relâche les critères si aucun résultat"""
+        # 1. Recherche stricte
+        players = self.search_players(criteria)
+        if players:
+            return players, "exact"
+        # 2. Relâcher le style
+        relaxed = dict(criteria)
+        if relaxed.get('style'):
+            del relaxed['style']
+            players = self.search_players(relaxed)
+            if players:
+                return players, "sans style"
+        # 3. Relâcher l'âge
+        if relaxed.get('minAge') or relaxed.get('maxAge'):
+            relaxed2 = dict(relaxed)
+            relaxed2.pop('minAge', None)
+            relaxed2.pop('maxAge', None)
+            players = self.search_players(relaxed2)
+            if players:
+                return players, "sans age"
+        # 4. Relâcher le budget
+        if relaxed.get('budget'):
+            relaxed3 = dict(relaxed)
+            relaxed3.pop('budget', None)
+            players = self.search_players(relaxed3)
+            if players:
+                return players, "sans budget"
+        # 5. Proposer les joueurs les plus chers de la position (ou tous)
+        fallback = {}
+        if criteria.get('position'):
+            fallback['position'] = criteria['position']
+        fallback['sort_order'] = 'desc'
+        players = self.search_players(fallback)
+        if players:
+            return players, "fallback"
+        # 6. Dernier recours : tous les joueurs
+        players = self.search_players({'sort_order': 'desc'})
+        return players, "all"
+
+    def generate_response(self, message: str, players: List[Dict], criteria: Dict, match_type: str = "exact") -> str:
         """Génère une réponse naturelle du chatbot"""
         if not players:
             return self._generate_no_results_response(criteria)
         
         response_parts = []
+        
+        if match_type != "exact":
+            response_parts.append("Aucun joueur ne correspond exactement à vos critères, mais voici des profils proches :")
         
         # Introduction personnalisée
         if criteria.get('position'):

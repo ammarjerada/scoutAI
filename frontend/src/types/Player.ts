@@ -1,5 +1,5 @@
 export interface Player {
-  
+  player_id: number;
   Player: string;
   Age: number;
   Pos: string;
@@ -23,6 +23,7 @@ export interface FilterParams {
   budget: string;
   minAge: string;
   maxAge: string;
+  playerName?: string;
   sort_order: 'asc' | 'desc';
 }
 

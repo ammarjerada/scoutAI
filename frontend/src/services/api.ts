@@ -54,6 +54,15 @@ export class ApiService {
     }
   }
 
+  static async getAllPlayers(): Promise<Player[]> {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/players/all`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Erreur lors de la récupération de tous les joueurs.');
+    }
+  }
+
   // ===== FAVORIS =====
   static async getFavorites(): Promise<any[]> {
     try {

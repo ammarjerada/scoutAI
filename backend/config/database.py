@@ -14,7 +14,7 @@ class DatabaseConnection:
         self.database = os.getenv('DB_NAME', 'scoutai')
         self.user = os.getenv('DB_USER', 'root')
         self.password = os.getenv('DB_PASSWORD', '')
-        self.port = int(os.getenv('DB_PORT', 3306))  # Changé de 3307 à 3306
+        self.port = int(os.getenv('DB_PORT', 3307))  
         self._connection = None
     
     def connect(self):

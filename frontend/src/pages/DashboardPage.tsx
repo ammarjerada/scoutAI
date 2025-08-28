@@ -56,14 +56,9 @@ export const DashboardPage: React.FC = () => {
             setError(null);
             
             // Charger tous les joueurs pour calculer les statistiques
-            const allPlayers = await ApiService.filterPlayers({
-                style: "",
-                position: "",
-                budget: "",
-                minAge: "",
-                maxAge: "",
-                sort_order: "desc"
-            });
+            // FIX: On charge les stats pour un style par défaut pour éviter l'erreur 400.
+            // L'API ne permet pas de charger tous les joueurs sans spécifier un style.
+            const allPlayers = await ApiService.getAllPlayers();
 
             if (allPlayers.length === 0) {
                 throw new Error('Aucune donnée disponible');

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, Search, ChevronDown, Heart } from 'lucide-react';
+import { Filter, Search, ChevronDown, Heart, RotateCcw } from 'lucide-react';
 import { FilterParams } from '../../types/Player';
 import { GAME_STYLES, POSITIONS } from '../../constants/gameStyles';
 
@@ -10,6 +10,7 @@ interface SearchFormProps {
   loading: boolean;
   onShowFavorites: () => void;
   favoritesCount: number;
+  onReset: () => void;
 }
 
 export const SearchForm: React.FC<SearchFormProps> = ({
@@ -18,7 +19,8 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   onSubmit,
   loading,
   onShowFavorites,
-  favoritesCount
+  favoritesCount,
+  onReset
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,8 +171,8 @@ export const SearchForm: React.FC<SearchFormProps> = ({
             </div>
           </div>
 
-          {/* Search Button */}
-          <div className="mt-8 flex justify-center">
+          {/* Action Buttons */}
+          <div className="mt-8 flex justify-center items-center gap-4">
             <button
               type="submit"
               disabled={loading || !filters.style}
@@ -180,6 +182,16 @@ export const SearchForm: React.FC<SearchFormProps> = ({
                 <Search className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
                 <span>{loading ? "Recherche en cours..." : "Rechercher les joueurs"}</span>
               </div>
+            </button>
+
+            {/* Reset Button */}
+            <button
+              type="button"
+              onClick={onReset}
+              className="group flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-all duration-300"
+            >
+              <RotateCcw className="w-4 h-4 group-hover:rotate-[-90deg] transition-transform duration-300" />
+              <span>Réinitialiser</span>
             </button>
           </div>
 
